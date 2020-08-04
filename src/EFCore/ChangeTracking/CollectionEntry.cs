@@ -83,6 +83,66 @@ namespace Microsoft.EntityFrameworkCore.ChangeTracking
         }
 
         /// <summary>
+        ///     Gets or sets a value indicating whether any of foreign key property values associated
+        ///     with this navigation property have been modified and should be updated in the database
+        ///     when <see cref="DbContext.SaveChanges()" /> is called.
+        /// </summary>
+        public override bool IsModified
+        {
+            get
+            {
+                var navigation = Metadata as INavigation;
+                var navigationValue = CurrentValue;
+
+                if (navigationValue != null)
+                {
+                    foreach (var relatedEntity in navigationValue)
+                    {
+                        var relatedEntry = InternalEntry.StateManager.TryGetEntry(relatedEntity, Metadata.TargetEntityType);
+
+                        if (relatedEntry != null
+                            && (relatedEntry.EntityState == EntityState.Added
+                                || relatedEntry.EntityState == EntityState.Deleted
+                                || (navigation != null
+                                    && navigation.ForeignKey.Properties.Any(relatedEntry.IsModified))))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+            set
+            {
+                var foreignKey = Metadata is ISkipNavigation skipNavigation
+                    ? skipNavigation.Inverse.ForeignKey
+                    : ((INavigation)Metadata).ForeignKey;
+
+                var navigationValue = CurrentValue;
+                if (navigationValue != null)
+                {
+                    foreach (var relatedEntity in navigationValue)
+                    {
+                        var relatedEntry = InternalEntry.StateManager.TryGetEntry(relatedEntity, Metadata.TargetEntityType);
+                        if (relatedEntry != null)
+                        {
+                            var anyNonPk = foreignKey.Properties.Any(p => !p.IsPrimaryKey());
+                            foreach (var property in foreignKey.Properties)
+                            {
+                                if (anyNonPk
+                                    && !property.IsPrimaryKey())
+                                {
+                                    relatedEntry.SetPropertyModified(property, isModified: value, acceptChanges: false);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         ///     <para>
         ///         Loads the entities referenced by this navigation property, unless <see cref="NavigationEntry.IsLoaded" />
         ///         is already set to true.

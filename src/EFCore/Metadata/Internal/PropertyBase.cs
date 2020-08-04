@@ -400,22 +400,20 @@ namespace Microsoft.EntityFrameworkCore.Metadata.Internal
             if (property?.IsIndexerProperty() == true)
             {
                 Expression expression = Expression.MakeIndex(
-                    instanceExpression, (PropertyInfo)memberInfo, new List<Expression>() { Expression.Constant(property.Name) });
+                    instanceExpression, (PropertyInfo)memberInfo, new List<Expression> { Expression.Constant(property.Name) });
 
                 if (property.DeclaringType.IsPropertyBag)
                 {
                     expression = Expression.Condition(
-                        Expression.Call(instanceExpression, _containsKeyMethod, new List<Expression>() { Expression.Constant(property.Name) }),
+                        Expression.Call(instanceExpression, _containsKeyMethod, new List<Expression> { Expression.Constant(property.Name) }),
                         expression,
                         Expression.Convert(property.ClrType.GetDefaultValueConstant(), expression.Type));
                 }
 
                 return expression;
             }
-            else
-            {
-                return Expression.MakeMemberAccess(instanceExpression, memberInfo);
-            }
+
+            return Expression.MakeMemberAccess(instanceExpression, memberInfo);
         }
 
         /// <summary>
